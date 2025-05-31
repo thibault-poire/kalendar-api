@@ -26,6 +26,6 @@ export class JwtRefreshStrategy extends PassportStrategy(
       .replace('Bearer', '')
       .trim();
 
-    return { id: payload.sub };
+    return this.auth_service.validate_refresh_token(payload.sub, refresh_token);
   }
 }

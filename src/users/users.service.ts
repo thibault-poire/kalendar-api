@@ -35,7 +35,7 @@ export class UsersService {
   async find_one_by_id(user_id: string) {
     const user = await this.user_model
       .findById<UserDocument>(user_id)
-      .select('-password');
+      .select('-password -refresh_token');
 
     if (!user) {
       throw new NotFoundException();
@@ -47,7 +47,7 @@ export class UsersService {
   async find_one_by_email(email: string) {
     const user = await this.user_model
       .findOne<UserDocument>({ email })
-      .select('-password');
+      .select('-password -refresh_token');
 
     if (!user) {
       throw new NotFoundException();
@@ -57,7 +57,21 @@ export class UsersService {
   }
 
   async find_one_by_email_with_password(email: string) {
-    const user = await this.user_model.findOne<UserDocument>({ email });
+    const user = await this.user_model
+      .findOne<UserDocument>({ email })
+      .select('-refresh_token');
+
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    return user.toObject();
+  }
+
+  async find_one_by_id_with_refresh_token(user_id: string) {
+    const user = await this.user_model
+      .findById<UserDocument>(user_id)
+      .select('-password');
 
     if (!user) {
       throw new NotFoundException();

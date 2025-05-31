@@ -12,7 +12,7 @@ export class AuthenticationService {
     private readonly users_service: UsersService,
   ) {}
 
-  async login(user_id: string) {
+  private async create_tokens_and_update_user_refresh_token(user_id: string) {
     const payload = { sub: user_id };
 
     const access_token = this.jwt_service.sign(payload, {
@@ -37,15 +37,38 @@ export class AuthenticationService {
     };
   }
 
-  refresh_token(user_id: string) {
-    const payload = { sub: user_id };
+  async login(user_id: string) {
+    return this.create_tokens_and_update_user_refresh_token(user_id);
+  }
 
-    return {
-      access_token: this.jwt_service.sign(payload, {
-        secret: process.env.JWT_SECRET,
-        expiresIn: process.env.JWT_EXPIRATION_TIME,
-      }),
-    };
+  async logout(user_id: string) {
+    return await this.users_service.update_one_by_id(user_id, {
+      refresh_token: null,
+    });
+  }
+
+  async refresh_token(user_id: string) {
+    return await this.create_tokens_and_update_user_refresh_token(user_id);
+  }
+
+  async validate_refresh_token(user_id: string, refresh_token: string) {
+    const user =
+      await this.users_service.find_one_by_id_with_refresh_token(user_id);
+
+    if (!user.refresh_token) {
+      throw new UnauthorizedException();
+    }
+
+    const is_valid_refresh_token = await compare(
+      refresh_token,
+      user.refresh_token,
+    );
+
+    if (!is_valid_refresh_token) {
+      throw new UnauthorizedException();
+    }
+
+    return { id: user._id };
   }
 
   async validate_user(email: string, password: string) {
@@ -59,7 +82,7 @@ export class AuthenticationService {
         throw new UnauthorizedException();
       }
 
-      return user._id;
+      return { id: user._id };
     } catch {
       throw new UnauthorizedException();
     }
