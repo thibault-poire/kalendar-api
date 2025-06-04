@@ -4,7 +4,8 @@ import { UsersService } from './users.service';
 
 import { JwtAuthenticationGuard } from 'src/authentication/guards/jwt.guard';
 
-import { CreateUserDto } from './dto/create-user..dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { FindUserByIdDto } from './dto/find-user-by-id.dto';
 
 @Controller('users')
 export class UsersController {
@@ -12,8 +13,8 @@ export class UsersController {
 
   @UseGuards(JwtAuthenticationGuard)
   @Get(':user_id')
-  async find_user_by_id(@Param('user_id') user_id: string) {
-    return await this.users_service.find_one_by_id(user_id);
+  async find_user_by_id(@Param() parameter: FindUserByIdDto) {
+    return await this.users_service.find_one_by_id(parameter.user_id);
   }
 
   @Post()

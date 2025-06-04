@@ -12,6 +12,25 @@ export class AuthenticationService {
     private readonly users_service: UsersService,
   ) {}
 
+  async account_activation(token: string) {
+    try {
+      const payload = await this.jwt_service.verifyAsync<{
+        sub: string;
+        iat: number;
+        exp: number;
+      }>(token, {
+        secret: process.env.JWT_ACTIVATION_SECRET,
+      });
+
+      await this.users_service.update_one_by_mail(payload.sub, {
+        activation_token: null,
+        is_verified: true,
+      });
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+
   private async create_tokens_and_update_user_refresh_token(user_id: string) {
     const payload = { sub: user_id };
 
@@ -71,20 +90,23 @@ export class AuthenticationService {
     return { id: user._id };
   }
 
-  async validate_user(email: string, password: string) {
-    try {
-      const user =
-        await this.users_service.find_one_by_email_with_password(email);
+  async validate_user(mail: string, password: string) {
+    const user = await this.users_service.find_one_by_mail_with_password(mail);
 
-      const is_valid_password = await compare(password, user.password);
-
-      if (!is_valid_password) {
-        throw new UnauthorizedException();
-      }
-
-      return { id: user._id };
-    } catch {
-      throw new UnauthorizedException();
+    if (!user) {
+      throw new UnauthorizedException(['invalid credentials']);
     }
+
+    const is_valid_password = await compare(password, user.password);
+
+    if (!is_valid_password) {
+      throw new UnauthorizedException(['invalid credentials']);
+    }
+
+    if (!user.is_verified) {
+      throw new UnauthorizedException(['account not verified']);
+    }
+
+    return { id: user._id };
   }
 }
