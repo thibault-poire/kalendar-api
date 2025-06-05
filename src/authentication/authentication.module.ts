@@ -7,6 +7,8 @@ import { AuthenticationController } from './authentication.controller';
 import { UsersModule } from 'src/users/users.module';
 
 import { AuthenticationService } from './authentication.service';
+
+import { JwtActivationStrategy } from './strategies/jwt-activation.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -18,6 +20,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
   providers: [
     AuthenticationService,
+    JwtActivationStrategy,
     JwtRefreshStrategy,
     JwtStrategy,
     LocalStrategy,

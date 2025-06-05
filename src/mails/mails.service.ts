@@ -10,7 +10,7 @@ export class MailsService {
       from: process.env.MAIL_HOST_SENDER,
       to: mail,
       subject: 'Account activation',
-      html: `<a href="${process.env.BASE_URL}/authentication/account-activation?token=${token}">Activate your account</a>`,
+      html: `<a href="${process.env.BASE_URL}/authentication/account-activation?activation-token=${token}">Activate your account</a>`,
     });
   }
 }

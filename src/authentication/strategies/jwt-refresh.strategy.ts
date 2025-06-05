@@ -6,6 +6,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { AuthenticationService } from '../authentication.service';
 
+const cookie_extractor = (request: Request) => {
+  return (request?.cookies?.['jwt-refresh'] as string) ?? null;
+};
+
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,
@@ -13,7 +17,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
 ) {
   constructor(private readonly auth_service: AuthenticationService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([cookie_extractor]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_REFRESH_SECRET,
       passReqToCallback: true,
@@ -21,10 +25,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
   }
 
   validate(request: Request, payload: { sub: string }) {
-    const refresh_token = request
-      .get('authorization')
-      .replace('Bearer', '')
-      .trim();
+    const refresh_token = request.cookies?.['jwt-refresh'] as string;
 
     return this.auth_service.validate_refresh_token(payload.sub, refresh_token);
   }

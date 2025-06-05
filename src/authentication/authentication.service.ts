@@ -2,6 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { compare, hash } from 'bcrypt';
+import { Response } from 'express';
+import ms, { StringValue } from 'ms';
 
 import { UsersService } from 'src/users/users.service';
 
@@ -12,17 +14,9 @@ export class AuthenticationService {
     private readonly users_service: UsersService,
   ) {}
 
-  async account_activation(token: string) {
+  async account_activation(user_mail: string) {
     try {
-      const payload = await this.jwt_service.verifyAsync<{
-        sub: string;
-        iat: number;
-        exp: number;
-      }>(token, {
-        secret: process.env.JWT_ACTIVATION_SECRET,
-      });
-
-      await this.users_service.update_one_by_mail(payload.sub, {
+      await this.users_service.update_one_by_mail(user_mail, {
         activation_token: null,
         is_verified: true,
       });
@@ -31,7 +25,10 @@ export class AuthenticationService {
     }
   }
 
-  private async create_tokens_and_update_user_refresh_token(user_id: string) {
+  private async create_tokens_and_update_user_refresh_token(
+    user_id: string,
+    response: Response,
+  ) {
     const payload = { sub: user_id };
 
     const access_token = this.jwt_service.sign(payload, {
@@ -50,24 +47,44 @@ export class AuthenticationService {
       refresh_token: hashed_refresh_token,
     });
 
+    const expires = new Date();
+
+    expires.setMilliseconds(
+      ms(process.env.JWT_REFRESH_EXPIRATION_TIME as StringValue),
+    );
+
+    response.cookie('jwt-refresh', refresh_token, {
+      expires,
+      httpOnly: true,
+      sameSite: true,
+    });
+
     return {
       access_token,
-      refresh_token,
     };
   }
 
-  async login(user_id: string) {
-    return this.create_tokens_and_update_user_refresh_token(user_id);
+  async login(user_id: string, response: Response) {
+    return this.create_tokens_and_update_user_refresh_token(user_id, response);
   }
 
-  async logout(user_id: string) {
+  async logout(user_id: string, response: Response) {
+    response.cookie('jwt-refresh', '', {
+      expires: new Date(),
+      secure: true,
+      sameSite: true,
+    });
+
     return await this.users_service.update_one_by_id(user_id, {
       refresh_token: null,
     });
   }
 
-  async refresh_token(user_id: string) {
-    return await this.create_tokens_and_update_user_refresh_token(user_id);
+  async refresh_token(user_id: string, response: Response) {
+    return await this.create_tokens_and_update_user_refresh_token(
+      user_id,
+      response,
+    );
   }
 
   async validate_refresh_token(user_id: string, refresh_token: string) {
@@ -90,8 +107,9 @@ export class AuthenticationService {
     return { id: user._id };
   }
 
-  async validate_user(mail: string, password: string) {
-    const user = await this.users_service.find_one_by_mail_with_password(mail);
+  async validate_user(user_mail: string, password: string) {
+    const user =
+      await this.users_service.find_one_by_mail_with_password(user_mail);
 
     if (!user) {
       throw new UnauthorizedException(['invalid credentials']);
